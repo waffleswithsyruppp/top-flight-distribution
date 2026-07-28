@@ -1,7 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useState, type ReactNode } from "react";
+
+import { createClient } from "@/lib/supabase/client";
 
 const steps = [
   "Release Details",
@@ -24,8 +27,31 @@ const genres = [
   "Other",
 ];
 
+const stores = [
+  "Spotify",
+  "Apple Music",
+  "Amazon Music",
+  "YouTube Music",
+  "TikTok",
+  "Deezer",
+  "Pandora",
+  "Tidal",
+  "Instagram/Facebook",
+];
+
+const inputClass =
+  "w-full rounded-xl border border-white/10 bg-black px-4 py-3 text-white outline-none transition placeholder:text-white/30 focus:border-[#D4AF37]";
+
 export default function NewReleasePage() {
+  const router = useRouter();
+  const supabase = createClient();
+
   const [step, setStep] = useState(0);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitMessage, setSubmitMessage] = useState("");
+  const [submitError, setSubmitError] = useState(false);
+
+  const [selectedStores, setSelectedStores] = useState<string[]>(stores);
 
   const [form, setForm] = useState({
     releaseType: "Single",
@@ -45,14 +71,156 @@ export default function NewReleasePage() {
     }));
   }
 
-  function nextStep() {
-    setStep((current) => Math.min(current + 1, steps.length - 1));
+  function goToStep(nextStep: number) {
+    setStep(nextStep);
+    setSubmitMessage("");
+    setSubmitError(false);
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
+  function nextStep() {
+    goToStep(Math.min(step + 1, steps.length - 1));
+  }
+
   function previousStep() {
-    setStep((current) => Math.max(current - 1, 0));
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    goToStep(Math.max(step - 1, 0));
+  }
+
+  function toggleStore(store: string) {
+    setSelectedStores((current) =>
+      current.includes(store)
+        ? current.filter((item) => item !== store)
+        : [...current, store],
+    );
+  }
+
+  async function submitRelease() {
+    setSubmitMessage("");
+    setSubmitError(false);
+
+    if (!form.title.trim()) {
+      setSubmitError(true);
+      setSubmitMessage("Enter a release title.");
+      goToStep(0);
+      return;
+    }
+
+    if (!form.primaryArtist.trim()) {
+      setSubmitError(true);
+      setSubmitMessage("Enter the primary artist name.");
+      goToStep(0);
+      return;
+    }
+
+    if (!form.releaseDate) {
+      setSubmitError(true);
+      setSubmitMessage("Choose a release date.");
+      goToStep(0);
+      return;
+    }
+
+    if (selectedStores.length === 0) {
+      setSubmitError(true);
+      setSubmitMessage("Select at least one distribution store.");
+      goToStep(4);
+      return;
+    }
+
+    setSubmitting(true);
+
+    try {
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser();
+
+      if (userError || !user) {
+        throw new Error("Your session expired. Please log in again.");
+      }
+
+      /*
+       * Find this user's artist profile.
+       * If it does not exist, create it automatically.
+       */
+      const { data: existingArtist, error: artistLookupError } = await supabase
+        .from("artists")
+        .select("id, artist_name")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (artistLookupError) {
+        throw artistLookupError;
+      }
+
+      let artistId = existingArtist?.id;
+
+      if (!artistId) {
+        const { data: newArtist, error: artistInsertError } = await supabase
+          .from("artists")
+          .insert({
+            user_id: user.id,
+            artist_name: form.primaryArtist.trim(),
+          })
+          .select("id")
+          .single();
+
+        if (artistInsertError) {
+          throw artistInsertError;
+        }
+
+      artistId = newArtist.id;
+    } else if (
+      existingArtist &&
+      existingArtist.artist_name !== form.primaryArtist.trim()
+    ) {
+      const { error: artistUpdateError } = await supabase
+        .from("artists")
+        .update({
+          artist_name: form.primaryArtist.trim(),
+        })
+        .eq("id", artistId);
+
+      if (artistUpdateError) {
+        throw artistUpdateError;
+      }
+    }      
+
+      const { error: releaseError } = await supabase
+        .from("releases")
+        .insert({
+          user_id: user.id,
+          artist_id: artistId,
+          title: form.title.trim(),
+          release_type: form.releaseType,
+          genre: form.genre,
+          language: form.language,
+          release_date: form.releaseDate,
+          explicit: form.explicit === "Yes",
+          status: "Pending Review",
+        });
+
+      if (releaseError) {
+        throw releaseError;
+      }
+
+      setSubmitMessage("Release submitted successfully.");
+
+      setTimeout(() => {
+        router.push("/dashboard/releases");
+        router.refresh();
+      }, 800);
+    } catch (error) {
+      console.error("Release submission error:", error);
+
+      setSubmitError(true);
+      setSubmitMessage(
+        error instanceof Error
+          ? error.message
+          : "The release could not be submitted.",
+      );
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (
@@ -87,7 +255,7 @@ export default function NewReleasePage() {
             <button
               key={label}
               type="button"
-              onClick={() => setStep(index)}
+              onClick={() => goToStep(index)}
               className={`rounded-xl border px-3 py-3 text-left text-xs font-semibold transition ${
                 index === step
                   ? "border-[#D4AF37] bg-[#D4AF37]/10 text-[#D4AF37]"
@@ -99,6 +267,7 @@ export default function NewReleasePage() {
               <span className="block text-[10px] uppercase tracking-wider opacity-60">
                 Step {index + 1}
               </span>
+
               <span className="mt-1 block">{label}</span>
             </button>
           ))}
@@ -111,7 +280,7 @@ export default function NewReleasePage() {
             <SectionHeading
               eyebrow="Step 1"
               title="Release details"
-              description="Enter the basic information listeners will see on streaming platforms."
+              description="Enter the information listeners will see on streaming platforms."
             />
 
             <div className="mt-8 grid gap-6 md:grid-cols-2">
@@ -131,6 +300,7 @@ export default function NewReleasePage() {
 
               <Field label="Release title">
                 <input
+                  type="text"
                   value={form.title}
                   onChange={(event) => updateField("title", event.target.value)}
                   placeholder="Enter the release title"
@@ -140,6 +310,7 @@ export default function NewReleasePage() {
 
               <Field label="Primary artist">
                 <input
+                  type="text"
                   value={form.primaryArtist}
                   onChange={(event) =>
                     updateField("primaryArtist", event.target.value)
@@ -151,6 +322,7 @@ export default function NewReleasePage() {
 
               <Field label="Featured artists">
                 <input
+                  type="text"
                   value={form.featuredArtists}
                   onChange={(event) =>
                     updateField("featuredArtists", event.target.value)
@@ -178,7 +350,9 @@ export default function NewReleasePage() {
                   className={inputClass}
                 >
                   {genres.map((genre) => (
-                    <option key={genre}>{genre}</option>
+                    <option key={genre} value={genre}>
+                      {genre}
+                    </option>
                   ))}
                 </select>
               </Field>
@@ -220,9 +394,9 @@ export default function NewReleasePage() {
           <PlaceholderStep
             eyebrow="Step 2"
             title="Upload artwork"
-            description="Upload square cover art for your release."
+            description="Upload square cover artwork for your release."
             boxTitle="Drop cover artwork here"
-            boxText="JPG or PNG • Recommended 3000 × 3000 pixels"
+            boxText="JPG or PNG • Recommended size: 3000 × 3000 pixels"
           />
         )}
 
@@ -237,13 +411,52 @@ export default function NewReleasePage() {
         )}
 
         {step === 3 && (
-          <PlaceholderStep
-            eyebrow="Step 4"
-            title="Credits and ownership"
-            description="Add songwriters, producers, publishers, and copyright information."
-            boxTitle="Credits form coming next"
-            boxText="We will connect this section to individual tracks"
-          />
+          <div>
+            <SectionHeading
+              eyebrow="Step 4"
+              title="Credits and ownership"
+              description="Enter the creative and ownership information for this release."
+            />
+
+            <div className="mt-8 grid gap-6 md:grid-cols-2">
+              <Field label="Songwriter">
+                <input
+                  type="text"
+                  placeholder="Songwriter's legal name"
+                  className={inputClass}
+                />
+              </Field>
+
+              <Field label="Producer">
+                <input
+                  type="text"
+                  placeholder="Producer name"
+                  className={inputClass}
+                />
+              </Field>
+
+              <Field label="Composer">
+                <input
+                  type="text"
+                  placeholder="Composer name"
+                  className={inputClass}
+                />
+              </Field>
+
+              <Field label="Copyright owner">
+                <input
+                  type="text"
+                  placeholder="Copyright owner"
+                  className={inputClass}
+                />
+              </Field>
+            </div>
+
+            <p className="mt-6 text-xs leading-5 text-white/35">
+              Credits will be connected to the tracks table in the next
+              development step.
+            </p>
+          </div>
         )}
 
         {step === 4 && (
@@ -255,26 +468,18 @@ export default function NewReleasePage() {
             />
 
             <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {[
-                "Spotify",
-                "Apple Music",
-                "Amazon Music",
-                "YouTube Music",
-                "TikTok",
-                "Deezer",
-                "Pandora",
-                "Tidal",
-                "Instagram/Facebook",
-              ].map((store) => (
+              {stores.map((store) => (
                 <label
                   key={store}
                   className="flex cursor-pointer items-center gap-3 rounded-2xl border border-white/10 bg-black p-4 transition hover:border-[#D4AF37]/50"
                 >
                   <input
                     type="checkbox"
-                    defaultChecked
+                    checked={selectedStores.includes(store)}
+                    onChange={() => toggleStore(store)}
                     className="h-4 w-4 accent-[#D4AF37]"
                   />
+
                   <span className="font-medium">{store}</span>
                 </label>
               ))}
@@ -291,33 +496,61 @@ export default function NewReleasePage() {
             />
 
             <div className="mt-8 grid gap-4 sm:grid-cols-2">
-              {[
-                ["Release type", form.releaseType],
-                ["Title", form.title || "Not entered"],
-                ["Primary artist", form.primaryArtist || "Not entered"],
-                ["Featured artists", form.featuredArtists || "None"],
-                ["Release date", form.releaseDate || "Not selected"],
-                ["Genre", form.genre],
-                ["Language", form.language],
-                ["Explicit", form.explicit],
-              ].map(([label, value]) => (
-                <div
-                  key={label}
-                  className="rounded-2xl border border-white/10 bg-black p-5"
-                >
-                  <p className="text-xs uppercase tracking-wider text-white/35">
-                    {label}
-                  </p>
-                  <p className="mt-2 font-semibold">{value}</p>
-                </div>
-              ))}
+              <ReviewItem label="Release type" value={form.releaseType} />
+              <ReviewItem
+                label="Title"
+                value={form.title || "Not entered"}
+              />
+              <ReviewItem
+                label="Primary artist"
+                value={form.primaryArtist || "Not entered"}
+              />
+              <ReviewItem
+                label="Featured artists"
+                value={form.featuredArtists || "None"}
+              />
+              <ReviewItem
+                label="Release date"
+                value={form.releaseDate || "Not selected"}
+              />
+              <ReviewItem label="Genre" value={form.genre} />
+              <ReviewItem label="Language" value={form.language} />
+              <ReviewItem label="Explicit" value={form.explicit} />
             </div>
+
+            <div className="mt-4 rounded-2xl border border-white/10 bg-black p-5">
+              <p className="text-xs uppercase tracking-wider text-white/35">
+                Selected stores
+              </p>
+
+              <p className="mt-2 font-semibold">
+                {selectedStores.length > 0
+                  ? selectedStores.join(", ")
+                  : "No stores selected"}
+              </p>
+            </div>
+
+            {submitMessage && (
+              <div
+                className={`mt-8 rounded-xl border px-4 py-3 text-sm ${
+                  submitError
+                    ? "border-red-500/30 bg-red-500/10 text-red-300"
+                    : "border-[#D4AF37]/30 bg-[#D4AF37]/10 text-[#E7C95D]"
+                }`}
+              >
+                {submitMessage}
+              </div>
+            )}
 
             <button
               type="button"
-              className="mt-8 w-full rounded-xl bg-[#D4AF37] px-6 py-4 font-bold text-black transition hover:bg-[#E7C95D]"
+              onClick={submitRelease}
+              disabled={submitting}
+              className="mt-4 w-full rounded-xl bg-[#D4AF37] px-6 py-4 font-bold text-black transition hover:bg-[#E7C95D] disabled:cursor-not-allowed disabled:opacity-60"
             >
-              Submit Release for Review
+              {submitting
+                ? "Submitting release..."
+                : "Submit Release for Review"}
             </button>
           </div>
         )}
@@ -327,7 +560,7 @@ export default function NewReleasePage() {
         <button
           type="button"
           onClick={previousStep}
-          disabled={step === 0}
+          disabled={step === 0 || submitting}
           className="rounded-xl border border-white/10 px-6 py-3 font-semibold text-white/60 transition hover:border-white/30 hover:text-white disabled:cursor-not-allowed disabled:opacity-30"
         >
           Previous
@@ -337,7 +570,8 @@ export default function NewReleasePage() {
           <button
             type="button"
             onClick={nextStep}
-            className="rounded-xl bg-[#D4AF37] px-8 py-3 font-bold text-black transition hover:bg-[#E7C95D]"
+            disabled={submitting}
+            className="rounded-xl bg-[#D4AF37] px-8 py-3 font-bold text-black transition hover:bg-[#E7C95D] disabled:opacity-60"
           >
             Continue
           </button>
@@ -347,15 +581,12 @@ export default function NewReleasePage() {
   );
 }
 
-const inputClass =
-  "w-full rounded-xl border border-white/10 bg-black px-4 py-3 text-white outline-none transition focus:border-[#D4AF37]";
-
 function Field({
   label,
   children,
 }: {
   label: string;
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   return (
     <label>
@@ -379,7 +610,9 @@ function SectionHeading({
       <p className="text-xs font-semibold uppercase tracking-[0.25em] text-[#D4AF37]">
         {eyebrow}
       </p>
+
       <h2 className="mt-3 text-2xl font-bold">{title}</h2>
+
       <p className="mt-2 text-sm text-white/50">{description}</p>
     </div>
   );
@@ -413,9 +646,26 @@ function PlaceholderStep({
         <span className="flex h-14 w-14 items-center justify-center rounded-full bg-[#D4AF37]/10 text-2xl text-[#D4AF37]">
           +
         </span>
+
         <span className="mt-5 text-lg font-bold">{boxTitle}</span>
+
         <span className="mt-2 text-sm text-white/40">{boxText}</span>
       </button>
+    </div>
+  );
+}
+
+function ReviewItem({
+  label,
+  value,
+}: {
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="rounded-2xl border border-white/10 bg-black p-5">
+      <p className="text-xs uppercase tracking-wider text-white/35">{label}</p>
+      <p className="mt-2 font-semibold">{value}</p>
     </div>
   );
 }
