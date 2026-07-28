@@ -87,13 +87,12 @@ export default async function ReleasesPage() {
                 </p>
               </div>
 
-              <button
-                type="button"
-                className="rounded-xl border border-white/10 px-5 py-3 text-sm font-semibold text-white/60"
-              >
-                View Release
-              </button>
-            </article>
+<Link
+  href={`/dashboard/releases/${release.id}`}
+  className="rounded-xl border border-white/10 px-5 py-3 text-sm font-semibold text-white hover:bg-white/10 transition inline-flex items-center justify-center"
+>
+  View Release
+</Link>            </article>
           ))}
         </section>
       )}
