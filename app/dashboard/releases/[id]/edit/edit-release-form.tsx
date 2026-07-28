@@ -6,6 +6,7 @@ import { useState } from "react";
 
 import { createClient } from "@/lib/supabase/client";
 import ArtworkUploader from "./artwork-uploader";
+import AudioUploader from "./audio-uploader";
 
 const genres = [
   "Hip-Hop/Rap",
@@ -281,11 +282,16 @@ export default function EditReleaseForm({
   initialArtworkPath={release.artworkPath}
 />
 
-</main>
-);
+<AudioUploader
+  releaseId={release.id}
+/>
+
+    </main>
+  );
 }
 
-function Field({  label,
+function Field({
+  label,
   children,
 }: {
   label: string;
