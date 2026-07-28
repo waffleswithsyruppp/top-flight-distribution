@@ -14,13 +14,15 @@ import {
   SortableContext,
   verticalListSortingStrategy,
   arrayMove,
+  useSortable,
 } from "@dnd-kit/sortable";
-import { createClient } from "@/lib/supabase/client";
 
+import { CSS } from "@dnd-kit/utilities";
+import type { DragEndEvent } from "@dnd-kit/core";  
+import { createClient } from "@/lib/supabase/client";
 type AudioUploaderProps = {
   releaseId: string;
 };
-
 type Track = {
   id: string;
   title: string;
@@ -381,8 +383,7 @@ export default function AudioUploader({
   );
 }
 
-function uploadWithTus({
-  file,
+function uploadWithTus({  file,
   accessToken,
   projectId,
   bucketName,
