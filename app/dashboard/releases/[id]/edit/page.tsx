@@ -36,6 +36,7 @@ export default async function EditReleasePage({
         explicit,
         status,
         artist_id,
+        artwork_path,
         artists (
           artist_name
         )
@@ -58,6 +59,7 @@ export default async function EditReleasePage({
       release={{
         id: release.id,
         artistId: release.artist_id,
+        artworkPath: release.artwork_path,
         title: release.title,
         releaseType: release.release_type || "Single",
         genre: release.genre || "Hip-Hop/Rap",

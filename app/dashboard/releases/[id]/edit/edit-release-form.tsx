@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { createClient } from "@/lib/supabase/client";
+import ArtworkUploader from "./artwork-uploader";
 
 const genres = [
   "Hip-Hop/Rap",
@@ -22,6 +23,7 @@ const inputClass =
   "w-full rounded-xl border border-white/10 bg-black px-4 py-3 text-white outline-none transition focus:border-[#D4AF37]";
 
 type ReleaseFormData = {
+    artworkPath: string | null;
   id: string;
   artistId: string | null;
   title: string;
@@ -272,13 +274,18 @@ export default function EditReleaseForm({
             {saving ? "Saving changes..." : "Save Changes"}
           </button>
         </div>
-      </section>
-    </main>
-  );
+</section>
+
+<ArtworkUploader
+  releaseId={release.id}
+  initialArtworkPath={release.artworkPath}
+/>
+
+</main>
+);
 }
 
-function Field({
-  label,
+function Field({  label,
   children,
 }: {
   label: string;
