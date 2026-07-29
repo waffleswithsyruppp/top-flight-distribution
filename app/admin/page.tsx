@@ -30,6 +30,7 @@ export default async function AdminPage() {
       id,
       title,
       status,
+      admin_notes,
       release_type,
       genre,
       release_date,

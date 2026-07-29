@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
-
+import { reviewRelease } from "./actions";
 type AdminReleasePageProps = {
   params: Promise<{
     id: string;
@@ -63,6 +63,7 @@ export default async function AdminReleasePage({
       id,
       title,
       status,
+      admin_notes,
       release_type,
       genre,
       language,
@@ -262,7 +263,46 @@ export default async function AdminReleasePage({
           </section>
 
           <section className="rounded-3xl border border-white/10 bg-white/[0.03] p-6 sm:p-8">
-            <h2 className="text-2xl font-bold">Admin review</h2>
+      <form action={reviewRelease}>
+  <input type="hidden" name="releaseId" value={release.id} />
+
+  <textarea
+    name="notes"
+    rows={6}
+    defaultValue={release.admin_notes || ""}
+    placeholder="Write notes for the artist..."
+    className="mt-6 w-full resize-y rounded-2xl border border-white/10 bg-black px-4 py-4 text-sm text-white outline-none transition placeholder:text-white/25 focus:border-[#D4AF37]/60"
+  />
+
+  <div className="mt-6 grid gap-3 sm:grid-cols-3">
+    <button
+      type="submit"
+      name="decision"
+      value="approve"
+      className="rounded-xl bg-[#D4AF37] px-5 py-3 text-sm font-bold text-black transition hover:opacity-90"
+    >
+      Approve Release
+    </button>
+
+    <button
+      type="submit"
+      name="decision"
+      value="changes"
+      className="rounded-xl border border-[#D4AF37]/40 bg-[#D4AF37]/10 px-5 py-3 text-sm font-bold text-[#D4AF37] transition hover:bg-[#D4AF37]/15"
+    >
+      Request Changes
+    </button>
+
+    <button
+      type="submit"
+      name="decision"
+      value="reject"
+      className="rounded-xl border border-red-500/40 bg-red-500/10 px-5 py-3 text-sm font-bold text-red-300 transition hover:bg-red-500/15"
+    >
+      Reject Release
+    </button>
+  </div>
+</form>
 
             <p className="mt-2 text-sm text-white/40">
               Add feedback before approving or returning the release.
