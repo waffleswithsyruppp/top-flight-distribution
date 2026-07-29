@@ -57,23 +57,31 @@ export default async function ReleaseDetailsPage({
     .eq("id", id)
     .eq("user_id", user.id)
     .maybeSingle();
+if (error) {
+  return (
+    <main className="mx-auto max-w-6xl">
+      <Link
+        href="/dashboard/releases"
+        className="text-sm text-white/50 transition hover:text-[#D4AF37]"
+      >
+        ← Back to releases
+      </Link>
 
-  if (error) {
-    return (
-      <main className="mx-auto max-w-6xl">
-        <Link
-          href="/dashboard/releases"
-          className="text-sm text-white/50 transition hover:text-[#D4AF37]"
-        >
-          ← Back to releases
-        </Link>
+      <div className="mt-8 rounded-2xl border border-red-500/30 bg-red-500/10 p-5 text-red-300">
+        {error.message}
+      </div>
+    </main>
+  );
+}
 
-        <div className="mt-8 rounded-2xl border border-red-500/30 bg-red-500/10 p-5 text-red-300">
-          {error.message}
-        </div>
-      </main>
-    );
-  }
+if (!release) {
+  notFound();
+}
+
+const tracks = [...(release.tracks ?? [])].sort(
+  (a, b) => (a.track_number ?? 0) - (b.track_number ?? 0),
+);  
+
 
   if (!release) {
     notFound();
@@ -83,7 +91,6 @@ export default async function ReleaseDetailsPage({
     ? release.artists[0]
     : release.artists;
 
-  const tracks = Array.isArray(release.tracks) ? release.tracks : [];
 
   return (
     <main className="mx-auto max-w-6xl">
