@@ -284,6 +284,60 @@ const tracks = [...(release.tracks ?? [])].sort(
           </section>
         </div>
       </section>
+   <section className="mt-10 rounded-3xl border border-white/10 bg-white/[0.03] p-8">
+  <p className="text-xs uppercase tracking-[0.25em] text-[#D4AF37]">
+    Top Flight Distribution Review
+  </p>
+
+  <h2 className="mt-2 text-3xl font-bold text-white">
+    Review Results
+  </h2>
+
+  <div className="mt-8 grid gap-6 md:grid-cols-2">
+    <div className="rounded-2xl border border-white/10 bg-black p-5">
+      <p className="text-xs uppercase tracking-[0.2em] text-white/50">
+        Status
+      </p>
+
+      <p className="mt-3 text-xl font-semibold text-[#D4AF37]">
+        {release.status || "Pending Review"}
+      </p>
+    </div>
+
+    <div className="rounded-2xl border border-white/10 bg-black p-5">
+      <p className="text-xs uppercase tracking-[0.2em] text-white/50">
+        Reviewed On
+      </p>
+
+      <p className="mt-3 text-white">
+        {release.reviewed_at
+          ? new Date(release.reviewed_at).toLocaleString()
+          : "Not reviewed yet"}
+      </p>
+    </div>
+  </div>
+
+  <div className="mt-8">
+    <p className="text-xs uppercase tracking-[0.2em] text-white/50">
+      Admin Notes
+    </p>
+
+    <div className="mt-3 rounded-2xl border border-white/10 bg-black p-6 text-white/80">
+      {release.admin_notes || "No notes have been left yet."}
+    </div>
+  </div>
+
+  {release.status === "Changes Requested" && (
+    <div className="mt-8">
+      <Link
+        href={`/dashboard/releases/${release.id}/edit`}
+        className="inline-flex rounded-xl bg-[#D4AF37] px-6 py-3 font-semibold text-black transition hover:opacity-90"
+      >
+        Edit & Resubmit
+      </Link>
+    </div>
+  )}
+</section>
     </main>
   );
 }
