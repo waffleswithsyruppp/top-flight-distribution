@@ -21,6 +21,7 @@ import { CSS } from "@dnd-kit/utilities";
 import type { DragEndEvent } from "@dnd-kit/core";  
 import { createClient } from "@/lib/supabase/client";
 type AudioUploaderProps = {
+
   releaseId: string;
 };
 type Track = {
@@ -48,7 +49,13 @@ export default function AudioUploader({
   releaseId,
 }: AudioUploaderProps) {
   const supabase = createClient();
-
+const sensors = useSensors(
+  useSensor(PointerSensor, {
+    activationConstraint: {
+      distance: 8,
+    },
+  }),
+);
   const [tracks, setTracks] = useState<Track[]>([]);
   const [title, setTitle] = useState("");
   const [explicit, setExplicit] = useState(false);
@@ -237,7 +244,55 @@ export default function AudioUploader({
       );
     }
   }
+async function handleDragEnd(event: DragEndEvent) {
+  const { active, over } = event;
 
+  if (!over || active.id === over.id) {
+    return;
+  }
+
+  const oldIndex = tracks.findIndex((track) => track.id === active.id);
+  const newIndex = tracks.findIndex((track) => track.id === over.id);
+
+  if (oldIndex === -1 || newIndex === -1) {
+    return;
+  }
+
+  const reorderedTracks = arrayMove(tracks, oldIndex, newIndex).map(
+    (track, index) => ({
+      ...track,
+      track_number: index + 1,
+    }),
+  );
+
+  setTracks(reorderedTracks);
+  setMessage("");
+  setIsError(false);
+
+  const results = await Promise.all(
+    reorderedTracks.map((track) =>
+      supabase
+        .from("tracks")
+        .update({
+          track_number: track.track_number,
+        })
+        .eq("id", track.id)
+        .eq("release_id", releaseId),
+    ),
+  );
+
+  const failedUpdate = results.find((result) => result.error);
+
+  if (failedUpdate?.error) {
+    console.error("Track ordering error:", failedUpdate.error);
+    setIsError(true);
+    setMessage("The new track order could not be saved.");
+    await loadTracks();
+    return;
+  }
+
+  setMessage("Track order saved.");
+}
   return (
     <section className="mt-8 rounded-3xl border border-white/10 bg-white/[0.03] p-6 sm:p-8">
       <div>
@@ -346,43 +401,93 @@ export default function AudioUploader({
             </p>
           </div>
         ) : (
-          tracks.map((track) => (
-            <article
-              key={track.id}
-              className="flex flex-col gap-4 rounded-2xl border border-white/10 bg-black p-5 sm:flex-row sm:items-center sm:justify-between"
-            >
-              <div className="flex min-w-0 items-center gap-4">
-                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#D4AF37]/10 font-bold text-[#D4AF37]">
-                  {track.track_number || "—"}
-                </span>
-
-                <div className="min-w-0">
-                  <h3 className="truncate font-semibold">
-                    {track.title}
-                  </h3>
-
-                  <p className="mt-1 truncate text-xs text-white/40">
-                    {track.file_name || "Audio file"} ·{" "}
-                    {formatFileSize(track.file_size)}
-                  </p>
-                </div>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => deleteTrack(track)}
-                className="rounded-xl border border-red-500/30 px-4 py-2 text-sm font-semibold text-red-300 transition hover:bg-red-500/10"
-              >
-                Delete
-              </button>
-            </article>
-          ))
+<DndContext
+  sensors={sensors}
+  collisionDetection={closestCenter}
+  onDragEnd={handleDragEnd}
+>
+  <SortableContext
+    items={tracks.map((track) => track.id)}
+    strategy={verticalListSortingStrategy}
+  >
+    {tracks.map((track) => (
+      <SortableTrack
+        key={track.id}
+        track={track}
+        onDelete={deleteTrack}
+      />
+    ))}
+  </SortableContext>
+</DndContext>
         )}
       </div>
     </section>
   );
 }
+function SortableTrack({
+  track,
+  onDelete,
+}: {
+  track: Track;
+  onDelete: (track: Track) => void;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({
+    id: track.id,
+  });
 
+  return (
+    <article
+      ref={setNodeRef}
+      style={{
+        transform: CSS.Transform.toString(transform),
+        transition,
+        opacity: isDragging ? 0.6 : 1,
+      }}
+      className="flex flex-col gap-4 rounded-2xl border border-white/10 bg-black p-5 sm:flex-row sm:items-center sm:justify-between"
+    >
+      <div className="flex min-w-0 items-center gap-4">
+        <button
+          type="button"
+          {...attributes}
+          {...listeners}
+          aria-label={`Move ${track.title}`}
+          className="cursor-grab rounded-lg border border-white/10 px-3 py-2 text-white/50 hover:text-[#D4AF37] active:cursor-grabbing"
+          style={{ touchAction: "none" }}
+        >
+          ⋮⋮
+        </button>
+
+        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#D4AF37]/10 font-bold text-[#D4AF37]">
+          {track.track_number || "—"}
+        </span>
+
+        <div className="min-w-0">
+          <h3 className="truncate font-semibold">{track.title}</h3>
+
+          <p className="mt-1 truncate text-xs text-white/40">
+            {track.file_name || "Audio file"} ·{" "}
+            {formatFileSize(track.file_size)}
+          </p>
+        </div>
+      </div>
+
+      <button
+        type="button"
+        onClick={() => onDelete(track)}
+        className="rounded-xl border border-red-500/30 px-4 py-2 text-sm font-semibold text-red-300 hover:bg-red-500/10"
+      >
+        Delete
+      </button>
+    </article>
+  );
+}
 function uploadWithTus({  file,
   accessToken,
   projectId,
