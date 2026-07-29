@@ -35,6 +35,8 @@ export default async function ReleaseDetailsPage({
         release_date,
         explicit,
         status,
+        admin_notes,
+reviewed_at,
         artwork_url,
         created_at,
         artists (
@@ -295,11 +297,13 @@ function DetailItem({
 }) {
   return (
     <div className="rounded-2xl border border-white/10 bg-black p-5">
-      <p className="text-xs uppercase tracking-[0.18em] text-white/35">
+      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-white/40">
         {label}
       </p>
 
-      <p className="mt-2 font-semibold">{value}</p>
+      <p className="mt-3 font-semibold text-white">
+        {value || "Not provided"}
+      </p>
     </div>
   );
 }
