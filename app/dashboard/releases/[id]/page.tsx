@@ -27,6 +27,7 @@ export default async function ReleaseDetailsPage({
     .from("releases")
     .select(
       `
+      scheduled_at,
         id,
         title,
         release_type,
@@ -313,6 +314,25 @@ const tracks = [...(release.tracks ?? [])].sort(
         {release.reviewed_at
           ? new Date(release.reviewed_at).toLocaleString()
           : "Not reviewed yet"}
+          {release.scheduled_at && (
+  <div className="rounded-2xl border border-[#D4AF37]/30 bg-[#D4AF37]/5 p-5 md:col-span-2">
+    <p className="text-xs uppercase tracking-[0.2em] text-white/50">
+      Scheduled Release Date
+    </p>
+
+    <p className="mt-3 text-xl font-semibold text-[#D4AF37]">
+      {new Date(release.scheduled_at).toLocaleDateString("en-US", {
+        month: "long",
+        day: "numeric",
+        year: "numeric",
+      })}
+    </p>
+
+    <p className="mt-2 text-sm text-white/50">
+      This release has been approved and scheduled.
+    </p>
+  </div>
+)}
       </p>
     </div>
   </div>
