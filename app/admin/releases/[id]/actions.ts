@@ -44,9 +44,30 @@ export async function reviewRelease(formData: FormData) {
     redirect("/dashboard");
   }
 
-  const status =
-    allowedDecisions[decision as keyof typeof allowedDecisions];
+let status: string =
+  allowedDecisions[decision as keyof typeof allowedDecisions];
+let scheduledAt: string | null = null;
 
+if (decision === "approve") {
+  const { data: release, error: releaseError } = await supabase
+    .from("releases")
+    .select("release_date")
+    .eq("id", releaseId)
+    .single();
+
+  if (releaseError || !release) {
+    throw new Error("Unable to load release date.");
+  }
+
+  if (release.release_date) {
+    const releaseDate = new Date(`${release.release_date}T00:00:00`);
+
+    if (releaseDate > new Date()) {
+      status = "Scheduled";
+      scheduledAt = releaseDate.toISOString();
+    }
+  }
+}
   const adminNotes =
     typeof notes === "string" && notes.trim()
       ? notes.trim()
@@ -68,6 +89,7 @@ export async function reviewRelease(formData: FormData) {
       admin_notes: adminNotes,
       reviewed_at: new Date().toISOString(),
       reviewed_by: user.id,
+      scheduled_at: scheduledAt,
     })
     .eq("id", releaseId);
 
