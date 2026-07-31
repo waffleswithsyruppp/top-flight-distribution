@@ -52,7 +52,10 @@ export default function NewReleasePage() {
   const [submitError, setSubmitError] = useState(false);
 
   const [selectedStores, setSelectedStores] = useState<string[]>(stores);
-
+const [artworkFile, setArtworkFile] = useState<File | null>(null);
+const [artworkPreview, setArtworkPreview] = useState("");
+const [artworkPath, setArtworkPath] = useState("");
+const [uploadingArtwork, setUploadingArtwork] = useState(false);
   const [form, setForm] = useState({
     releaseType: "Single",
     title: "",
@@ -93,7 +96,73 @@ export default function NewReleasePage() {
         : [...current, store],
     );
   }
+async function uploadNewArtwork(file: File) {
+  const allowedTypes = ["image/jpeg", "image/png", "image/webp"];
+  const maxFileSize = 10 * 1024 * 1024;
 
+  setSubmitMessage("");
+  setSubmitError(false);
+
+  if (!allowedTypes.includes(file.type)) {
+    setSubmitError(true);
+    setSubmitMessage("Upload a JPG, PNG, or WebP image.");
+    return;
+  }
+
+  if (file.size > maxFileSize) {
+    setSubmitError(true);
+    setSubmitMessage("Artwork must be smaller than 10 MB.");
+    return;
+  }
+
+  setUploadingArtwork(true);
+
+  try {
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser();
+
+    if (userError || !user) {
+      throw new Error("Your session expired. Please log in again.");
+    }
+
+    const extension =
+      file.name.split(".").pop()?.toLowerCase() || "jpg";
+
+    const filePath =
+      `${user.id}/drafts/cover-${Date.now()}.${extension}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from("release-artwork")
+      .upload(filePath, file, {
+        cacheControl: "3600",
+        contentType: file.type,
+        upsert: false,
+      });
+
+    if (uploadError) {
+      throw uploadError;
+    }
+
+    const {
+      data: { publicUrl },
+    } = supabase.storage
+      .from("release-artwork")
+      .getPublicUrl(filePath);
+
+    setArtworkFile(file);
+    setArtworkPath(filePath);
+    setArtworkPreview(publicUrl);
+  } catch (error) {
+    setSubmitError(true);
+    setSubmitMessage(
+      error instanceof Error ? error.message : "Artwork upload failed.",
+    );
+  } finally {
+    setUploadingArtwork(false);
+  }
+}
   async function submitRelease() {
     setSubmitMessage("");
     setSubmitError(false);
@@ -632,29 +701,42 @@ function PlaceholderStep({
   boxText: string;
 }) {
   return (
-    <div>
+    <section className="rounded-3xl border border-white/10 bg-white/[0.03] p-6 sm:p-8">
       <SectionHeading
         eyebrow={eyebrow}
         title={title}
         description={description}
       />
 
-      <button
-        type="button"
-        className="mt-8 flex min-h-64 w-full flex-col items-center justify-center rounded-3xl border border-dashed border-white/20 bg-black p-8 text-center transition hover:border-[#D4AF37]/70"
-      >
+      <div className="relative mt-8 flex min-h-[250px] cursor-pointer flex-col items-center justify-center rounded-3xl border border-dashed border-[#D4AF37]/60 bg-black p-8 text-center">
         <span className="flex h-14 w-14 items-center justify-center rounded-full bg-[#D4AF37]/10 text-2xl text-[#D4AF37]">
           +
         </span>
 
-        <span className="mt-5 text-lg font-bold">{boxTitle}</span>
+        <p className="mt-5 text-lg font-semibold text-white">{boxTitle}</p>
 
-        <span className="mt-2 text-sm text-white/40">{boxText}</span>
-      </button>
-    </div>
+        <p className="mt-2 text-sm text-white/40">{boxText}</p>
+
+        {eyebrow === "Step 2" && (
+          <input
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            className="absolute inset-0 z-10 h-full w-full cursor-pointer opacity-0"
+            onChange={(event) => {
+              const file = event.currentTarget.files?.[0];
+
+              if (file) {
+                console.log("Selected artwork:", file.name);
+              }
+
+              event.currentTarget.value = "";
+            }}
+          />
+        )}
+      </div>
+    </section>
   );
 }
-
 function ReviewItem({
   label,
   value,

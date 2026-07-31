@@ -23,6 +23,10 @@ export default function ArtworkUploader({
   const [uploading, setUploading] = useState(false);
   const [message, setMessage] = useState("");
   const [isError, setIsError] = useState(false);
+  const [artworkFile, setArtworkFile] = useState<File | null>(null);
+const [artworkPreview, setArtworkPreview] = useState("");
+const [artworkPath, setArtworkPath] = useState("");
+const [uploadingArtwork, setUploadingArtwork] = useState(false);
 
   useEffect(() => {
     async function loadPreview() {
@@ -224,36 +228,35 @@ export default function ArtworkUploader({
         </div>
 
         <div className="flex flex-col justify-center">
-          <label className="flex cursor-pointer flex-col items-center justify-center rounded-2xl border border-dashed border-white/20 bg-black p-8 text-center transition hover:border-[#D4AF37]/60">
-            <span className="flex h-12 w-12 items-center justify-center rounded-full bg-[#D4AF37]/10 text-xl text-[#D4AF37]">
-              +
-            </span>
+<div className="relative flex cursor-pointer flex-col items-center justify-center rounded-2xl border border-dashed border-white/20 p-6 transition hover:border-[#D4AF37]/60">
+  <span className="flex h-12 w-12 items-center justify-center rounded-full bg-[#D4AF37]/10 text-xl text-[#D4AF37]">
+    +
+  </span>
 
-            <span className="mt-4 font-semibold">
-              {uploading ? "Uploading..." : "Choose artwork"}
-            </span>
+  <span className="mt-4 font-semibold">
+    {uploading ? "Uploading..." : "Choose artwork"}
+  </span>
 
-            <span className="mt-2 text-xs text-white/40">
-              JPG, PNG, or WebP
-            </span>
+  <span className="mt-2 text-xs text-white/40">
+    JPG, PNG, or WebP
+  </span>
 
-            <input
-              type="file"
-              accept="image/jpeg,image/png,image/webp"
-              disabled={uploading}
-             className="sr-only"
-              onChange={(event) => {
-                const file = event.target.files?.[0];
+  <input
+    type="file"
+    accept="image/jpeg,image/png,image/webp"
+    disabled={uploading}
+    className="absolute inset-0 z-10 h-full w-full cursor-pointer opacity-0"
+    onChange={(event) => {
+      const file = event.currentTarget.files?.[0];
 
-                if (file) {
-                  uploadArtwork(file);
-                }
+      if (file) {
+        uploadArtwork(file);
+      }
 
-                event.target.value = "";
-              }}
-            />
-          </label>
-
+      event.currentTarget.value = "";
+    }}
+  />
+</div>
           {artworkPath && (
             <button
               type="button"
