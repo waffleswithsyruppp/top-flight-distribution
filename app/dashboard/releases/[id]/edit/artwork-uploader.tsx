@@ -23,10 +23,6 @@ export default function ArtworkUploader({
   const [uploading, setUploading] = useState(false);
   const [message, setMessage] = useState("");
   const [isError, setIsError] = useState(false);
-  const [artworkFile, setArtworkFile] = useState<File | null>(null);
-const [artworkPreview, setArtworkPreview] = useState("");
-const [artworkPath, setArtworkPath] = useState("");
-const [uploadingArtwork, setUploadingArtwork] = useState(false);
 
   useEffect(() => {
     async function loadPreview() {
