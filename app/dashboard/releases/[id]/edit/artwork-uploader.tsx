@@ -241,7 +241,7 @@ export default function ArtworkUploader({
               type="file"
               accept="image/jpeg,image/png,image/webp"
               disabled={uploading}
-              className="hidden"
+             className="sr-only"
               onChange={(event) => {
                 const file = event.target.files?.[0];
 
