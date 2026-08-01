@@ -114,9 +114,13 @@ async function uploadNewArtwork(file: File) {
     setSubmitMessage("Artwork must be smaller than 10 MB.");
     return;
   }
+  
+  const localPreviewUrl = URL.createObjectURL(file);
 
-  setUploadingArtwork(true);
+setArtworkFile(file);
+setArtworkPreview(localPreviewUrl);
 
+setUploadingArtwork(true);
   try {
     const {
       data: { user },
@@ -153,7 +157,6 @@ async function uploadNewArtwork(file: File) {
 
     setArtworkFile(file);
     setArtworkPath(filePath);
-    setArtworkPreview(publicUrl);
   } catch (error) {
     setSubmitError(true);
     setSubmitMessage(
@@ -693,12 +696,16 @@ function PlaceholderStep({
   description,
   boxTitle,
   boxText,
+  artworkPreview,
+  onFileSelect,
 }: {
   eyebrow: string;
   title: string;
   description: string;
   boxTitle: string;
   boxText: string;
+  artworkPreview?: string;
+  onFileSelect?: (file: File) => void;
 }) {
   return (
     <section className="rounded-3xl border border-white/10 bg-white/[0.03] p-6 sm:p-8">
@@ -707,33 +714,55 @@ function PlaceholderStep({
         title={title}
         description={description}
       />
+<div className="relative mt-8 flex min-h-[250px] cursor-pointer flex-col items-center justify-center overflow-hidden rounded-3xl border border-dashed border-[#D4AF37]/60 bg-black p-8 text-center">
+  {artworkPreview ? (
+    <>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={artworkPreview}
+        alt="Selected cover artwork"
+        className="absolute inset-0 h-full w-full object-cover"
+      />
 
-      <div className="relative mt-8 flex min-h-[250px] cursor-pointer flex-col items-center justify-center rounded-3xl border border-dashed border-[#D4AF37]/60 bg-black p-8 text-center">
-        <span className="flex h-14 w-14 items-center justify-center rounded-full bg-[#D4AF37]/10 text-2xl text-[#D4AF37]">
-          +
-        </span>
+      <div className="absolute inset-0 bg-black/20" />
 
-        <p className="mt-5 text-lg font-semibold text-white">{boxTitle}</p>
-
-        <p className="mt-2 text-sm text-white/40">{boxText}</p>
-
-        {eyebrow === "Step 2" && (
-          <input
-            type="file"
-            accept="image/jpeg,image/png,image/webp"
-            className="absolute inset-0 z-10 h-full w-full cursor-pointer opacity-0"
-            onChange={(event) => {
-              const file = event.currentTarget.files?.[0];
-
-              if (file) {
-                console.log("Selected artwork:", file.name);
-              }
-
-              event.currentTarget.value = "";
-            }}
-          />
-        )}
+      <div className="relative z-10 rounded-xl bg-black/70 px-4 py-2 text-sm font-semibold text-white">
+        Click to replace artwork
       </div>
+    </>
+  ) : (
+    <div className="relative z-10 flex flex-col items-center">
+      <span className="flex h-14 w-14 items-center justify-center rounded-full bg-[#D4AF37]/10 text-2xl text-[#D4AF37]">
+        +
+      </span>
+
+      <p className="mt-5 text-lg font-semibold text-white">
+        {boxTitle}
+      </p>
+
+      <p className="mt-2 text-sm text-white/40">
+        {boxText}
+      </p>
+    </div>
+  )}
+
+  {onFileSelect && (
+    <input
+      type="file"
+      accept="image/jpeg,image/png,image/webp"
+      className="absolute inset-0 z-20 h-full w-full cursor-pointer opacity-0"
+      onChange={(event) => {
+        const file = event.currentTarget.files?.[0];
+
+        if (file) {
+          onFileSelect(file);
+        }
+
+        event.currentTarget.value = "";
+      }}
+    />
+  )}
+</div>
     </section>
   );
 }
