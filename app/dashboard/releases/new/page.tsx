@@ -463,14 +463,22 @@ setUploadingArtwork(true);
         )}
 
         {step === 1 && (
-          <PlaceholderStep
-            eyebrow="Step 2"
-            title="Upload artwork"
-            description="Upload square cover artwork for your release."
-            boxTitle="Drop cover artwork here"
-            boxText="JPG or PNG • Recommended size: 3000 × 3000 pixels"
-          />
-        )}
+<PlaceholderStep
+  eyebrow="Step 2"
+  title="Upload artwork"
+  description="Upload square cover artwork for your release."
+  boxTitle={
+    uploadingArtwork
+      ? "Uploading..."
+      : artworkFile
+        ? artworkFile.name
+        : "Drop cover artwork here"
+  }
+  boxText="JPG, PNG, or WebP • Recommended size: 3000 × 3000 pixels"
+  artworkPreview={artworkPreview}
+  onFileSelect={uploadNewArtwork}
+/>
+)}
 
         {step === 2 && (
           <PlaceholderStep
